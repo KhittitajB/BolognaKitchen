@@ -83,6 +83,9 @@ pygame.init()
 screen = pygame.display.set_mode((configs.WIDTH, configs.HEIGHT))
 pygame.display.set_caption("Bologna Kitchen")
 
+background_img = configs.background
+background_img = pygame.transform.scale(background_img, (configs.WIDTH, configs.HEIGHT))
+
 font = pygame.font.Font(None, 30)
 
 def draw_card(x, y, card, selected=False):
@@ -101,15 +104,6 @@ def draw_hand(h):
     for i, card in enumerate(h.hand):
         x = start_x + i * spacing
         draw_card(x, y, card, selected=(card in hand.selected))
-
-# DOESNT WORK
-# def draw_hand(hand):
-#     start_x = (configs.WIDTH - (len(hand.hand) * 100)) // 2
-#     y = configs.HEIGHT - configs.CARD_HEIGHT - 120
-#     spacing = 100
-#     for i, card in enumerate(hand.hand):
-#         x = start_x + i * spacing
-#         draw_card(x, y, card, card in selected_cards)
 
 def draw_button():
     mouse_pos = pygame.mouse.get_pos()
@@ -140,7 +134,6 @@ def draw_play_button():
     screen.blit(text_surface, (configs.WIDTH // 2 - 20, configs.HEIGHT - 40))
     return play_rect
 
-
 def get_clicked_card(hand, mouse_pos):
     start_x = (configs.WIDTH - (len(hand.hand) * 100)) // 2
     y = configs.HEIGHT - configs.CARD_HEIGHT - 120
@@ -156,11 +149,50 @@ def get_clicked_card(hand, mouse_pos):
 
 def play_selected_cards():
     global current_score
+
+    if not hand.selected:
+        return
+
+    multiplier, hand_name = evaluate_hand(hand.selected)
+
+    hand_score = sum(card.size for card in hand.selected) * multiplier
+    current_score += int(hand_score)
+
+    print(f"Played: {hand_name}! Score: +{int(hand_score)}")
+
     for card in hand.selected:
-        current_score += card.size
         hand.hand.remove(card)
     hand.selected.clear()
+
     refill_hand()
+
+def evaluate_hand(cards):
+    size_counts = {}
+    suite_counts = {}
+
+    for card in cards:
+        size_counts[card.size] = size_counts.get(card.size, 0) + 1
+        suite_counts[card.suite] = suite_counts.get(card.suite, 0) + 1
+
+    values = sorted(size_counts.values(), reverse=True)
+
+    # Hand Ranking (Balatro-style) - Returns number + hand name
+    if 5 in values:
+        return 10, "Five of a Kind"
+    if 4 in values:
+        return 6, "Four of a Kind"
+    if 3 in values and 2 in values:
+        return 5, "Full House"
+    if 3 in values:
+        return 3, "Three of a Kind"
+    if values.count(2) == 2:
+        return 2, "Two Pair"
+    if 2 in values:
+        return 1.5, "Pair"
+    if len(set(card.suite for card in cards)) == 1:
+        return 4, "Flush"
+
+    return 1, "High Card"
 
 def refill_hand():
     while len(hand.hand) < 8 and dp.pile:
@@ -169,6 +201,12 @@ def refill_hand():
 def draw_score_panel():
     score_text = font.render(f"Score: {current_score} / {goal_score}", True, (0, 0, 0))
     screen.blit(score_text, (configs.WIDTH // 2 - 50, 20))
+
+    if hand.selected:
+        _, hand_name = evaluate_hand(hand.selected) # Recieves number + hand name
+        hand_text = font.render(f"Hand: {hand_name}", True, (0, 0, 0))
+        screen.blit(hand_text, (configs.WIDTH // 2 - 50, 50))
+
 
 dp = DrawPile()
 hand = Hand()
@@ -183,11 +221,11 @@ for _ in range(8):
 # Score System
 goal_score = 50
 current_score = 0
-selected_cards = []
 
 running = True
 while running:
-    screen.fill(configs.WHITE)
+    screen.blit(background_img, (0,0))
+
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
@@ -196,10 +234,11 @@ while running:
             clicked_card = get_clicked_card(hand, pygame.mouse.get_pos())
 
             if clicked_card:
-                toggle_card_selection(clicked_card)  # Correct selection toggle
+                toggle_card_selection(clicked_card)
 
-            if draw_play_button().collidepoint(pygame.mouse.get_pos()):
-                play_selected_cards()  # Now plays properly
+            play_rect = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 50, 100, 40)
+            if play_rect.collidepoint(pygame.mouse.get_pos()):
+                play_selected_cards()
 
     draw_hand(hand)
     draw_score_panel()
