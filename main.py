@@ -1,6 +1,7 @@
 import pygame
 import random
 import configs
+import meals
 
 class PlayingCard:
     def __init__(self, size, suite):
@@ -147,52 +148,25 @@ def get_clicked_card(hand, mouse_pos):
             return card
     return None
 
-def play_selected_cards():
-    global current_score
+# def play_selected_cards():
+#     global current_score
 
-    if not hand.selected:
-        return
+#     if not hand.selected:
+#         return
 
-    multiplier, hand_name = evaluate_hand(hand.selected)
+#     hand_name = meals.evaluate_hand(hand.selected)
 
-    hand_score = sum(card.size for card in hand.selected) * multiplier
-    current_score += int(hand_score)
+#     score_in_hand = sum(card.size for card in hand.selected)
+#     calculated_score = (score_in_hand + meals.)
 
-    print(f"Played: {hand_name}! Score: +{int(hand_score)}")
+#     # DEBUG
+#     # print(f"Played: {hand_name}! Score: +{int(hand_score)}")
 
-    for card in hand.selected:
-        hand.hand.remove(card)
-    hand.selected.clear()
+#     for card in hand.selected:
+#         hand.hand.remove(card)
+#     hand.selected.clear()
 
-    refill_hand()
-
-def evaluate_hand(cards):
-    size_counts = {}
-    suite_counts = {}
-
-    for card in cards:
-        size_counts[card.size] = size_counts.get(card.size, 0) + 1
-        suite_counts[card.suite] = suite_counts.get(card.suite, 0) + 1
-
-    values = sorted(size_counts.values(), reverse=True)
-
-    # Hand Ranking (Balatro-style) - Returns number + hand name
-    if 5 in values:
-        return 10, "Five of a Kind"
-    if 4 in values:
-        return 6, "Four of a Kind"
-    if 3 in values and 2 in values:
-        return 5, "Full House"
-    if 3 in values:
-        return 3, "Three of a Kind"
-    if values.count(2) == 2:
-        return 2, "Two Pair"
-    if 2 in values:
-        return 1.5, "Pair"
-    if len(set(card.suite for card in cards)) == 1:
-        return 4, "Flush"
-
-    return 1, "High Card"
+#     refill_hand()
 
 def refill_hand():
     while len(hand.hand) < 8 and dp.pile:
@@ -203,7 +177,7 @@ def draw_score_panel():
     screen.blit(score_text, (configs.WIDTH // 2 - 50, 20))
 
     if hand.selected:
-        _, hand_name = evaluate_hand(hand.selected) # Recieves number + hand name
+        hand_name = meals.evaluate_hand(hand.selected) # Recieves hand name for further calcs
         hand_text = font.render(f"Hand: {hand_name}", True, (0, 0, 0))
         screen.blit(hand_text, (configs.WIDTH // 2 - 50, 50))
 
