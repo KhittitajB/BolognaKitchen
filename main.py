@@ -99,11 +99,12 @@ def draw_card(x, y, card, selected=False):
 
 def draw_hand(h):
     start_x = (configs.WIDTH - (len(h.hand) * 100)) // 2
-    y = configs.HEIGHT - configs.CARD_HEIGHT - 120
+    base_y = configs.HEIGHT - configs.CARD_HEIGHT - 120
     spacing = 100
 
     for i, card in enumerate(h.hand):
         x = start_x + i * spacing
+        y = base_y - 20 if card in hand.selected else base_y
         draw_card(x, y, card, selected=(card in hand.selected))
 
 def draw_button():
@@ -148,26 +149,6 @@ def get_clicked_card(hand, mouse_pos):
             return card
     return None
 
-# def play_selected_cards():
-#     global current_score
-
-#     if not hand.selected:
-#         return
-
-#     hand_name = meals.evaluate_hand(hand.selected)
-
-#     score_in_hand = sum(card.size for card in hand.selected)
-#     calculated_score = (score_in_hand + meals.)
-
-#     # DEBUG
-#     # print(f"Played: {hand_name}! Score: +{int(hand_score)}")
-
-#     for card in hand.selected:
-#         hand.hand.remove(card)
-#     hand.selected.clear()
-
-#     refill_hand()
-
 def refill_hand():
     while len(hand.hand) < 8 and dp.pile:
         hand.add_to_hand(dp.pile.pop(random.randint(0, len(dp.pile) - 1)))
@@ -177,9 +158,74 @@ def draw_score_panel():
     screen.blit(score_text, (configs.WIDTH // 2 - 50, 20))
 
     if hand.selected:
-        hand_name = meals.evaluate_hand(hand.selected) # Recieves hand name for further calcs
-        hand_text = font.render(f"Hand: {hand_name}", True, (0, 0, 0))
+        recieved_hand = meals.evaluate_hand(hand.selected) # Recieves hand name for further calcs
+        hand_text = font.render(f"Hand: {recieved_hand.name}", True, (0, 0, 0))
         screen.blit(hand_text, (configs.WIDTH // 2 - 50, 50))
+
+# Played cards animation
+def animate_cards_to_center(cards):
+    frames = 15
+    center_x = configs.WIDTH // 2 - configs.CARD_WIDTH // 2
+    center_y = configs.HEIGHT // 2 - configs.CARD_HEIGHT // 2
+
+    card_positions = []
+
+    start_x = (configs.WIDTH - (len(hand.hand) * 100)) // 2
+    y = configs.HEIGHT - configs.CARD_HEIGHT - 120
+    spacing = 100
+
+    for card in cards:
+        i = hand.hand.index(card)
+        x = start_x + i * spacing
+        card_positions.append((x, y))
+
+    for frame in range(frames):
+        screen.blit(background_img, (0, 0))
+        draw_hand(hand)
+        draw_score_panel()
+        draw_play_button()
+        draw_draw_pile(dp)
+
+        for i, card in enumerate(cards):
+            start_x, start_y = card_positions[i]
+            x = start_x + (center_x - start_x) * frame / frames
+            y = start_y + (center_y - start_y) * frame / frames
+            draw_card(x, y, card, selected=True)
+
+        pygame.display.flip()
+        pygame.time.delay(25)
+
+def play_selected_cards():
+    global current_score, game_won
+
+    if not hand.selected:
+        return
+
+    animate_cards_to_center(hand.selected)
+
+    hand_obj = meals.evaluate_hand(hand.selected)
+
+    flat_score = hand_obj.score
+    for card in hand.selected:
+        flat_score += card.size
+
+    added_score = flat_score * hand_obj.mult
+    current_score += added_score
+
+    for card in hand.selected:
+        hand.hand.remove(card)
+    hand.selected.clear()
+
+    if current_score >= goal_score:
+        game_won = True
+
+    refill_hand()
+
+def draw_win_screen():
+    screen.fill((0, 0, 0))
+    win_text = font.render("You Win!", True, (255, 255, 0))
+    win_rect = win_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2))
+    screen.blit(win_text, win_rect)
 
 
 dp = DrawPile()
@@ -193,8 +239,9 @@ for _ in range(8):
     hand.add_to_hand(dp.pile.pop(random.randint(0, len(dp.pile) - 1)))
 
 # Score System
-goal_score = 50
+goal_score = 100
 current_score = 0
+game_won = False
 
 running = True
 while running:
@@ -204,7 +251,7 @@ while running:
         if event.type == pygame.QUIT:
             running = False
 
-        if event.type == pygame.MOUSEBUTTONDOWN:
+        if not game_won and event.type == pygame.MOUSEBUTTONDOWN:
             clicked_card = get_clicked_card(hand, pygame.mouse.get_pos())
 
             if clicked_card:
@@ -214,9 +261,12 @@ while running:
             if play_rect.collidepoint(pygame.mouse.get_pos()):
                 play_selected_cards()
 
-    draw_hand(hand)
-    draw_score_panel()
-    draw_play_button()
+    if game_won:
+        draw_win_screen()
+    else:
+        draw_hand(hand)
+        draw_score_panel()
+        draw_play_button()
 
     pygame.display.flip()
 
