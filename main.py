@@ -2,6 +2,7 @@ import pygame
 import random
 import configs
 import meals
+import chefs
 
 class PlayingCard:
     def __init__(self, size, suite):
@@ -205,11 +206,15 @@ def play_selected_cards():
 
     hand_obj = meals.evaluate_hand(hand.selected)
 
-    flat_score = hand_obj.score
-    for card in hand.selected:
-        flat_score += card.size
+    score_dict = {
+        "score": hand_obj.score + sum(card.size for card in hand.selected),
+        "mult": hand_obj.mult
+    }
 
-    added_score = flat_score * hand_obj.mult
+    for chef in active_chefs:
+        chef.on_hand_evaluated(hand.selected, score_dict)
+
+    added_score = score_dict["score"] * score_dict["mult"]
     current_score += added_score
 
     for card in hand.selected:
@@ -238,10 +243,44 @@ for suite in ["meat", "veggie", "grains", "dairy"]:
 for _ in range(8):
     hand.add_to_hand(dp.pile.pop(random.randint(0, len(dp.pile) - 1)))
 
+chef_positions = []
+
+def draw_chefs():
+    chef_positions.clear()
+    x = 20
+    y = 40
+    for chef in active_chefs:
+        if chef.image:
+            screen.blit(chef.image, (x, y))
+        else:
+            pygame.draw.rect(screen, (60, 60, 60), (x, y, 80, 80), border_radius=10)
+
+        chef_positions.append((pygame.Rect(x, y, 120, 80), chef))
+
+        x += 110
+
+def draw_chef_tooltip():
+    mouse_pos = pygame.mouse.get_pos()
+    for rect, chef in chef_positions:
+        if rect.collidepoint(mouse_pos):
+            tooltip_width = 400
+            tooltip_height = 60
+            tooltip_x = rect.x
+            tooltip_y = rect.y + rect.height + 10
+            pygame.draw.rect(screen, (0, 0, 0), (tooltip_x, tooltip_y, tooltip_width, tooltip_height), border_radius=10)
+            pygame.draw.rect(screen, (255, 255, 0), (tooltip_x, tooltip_y, tooltip_width, tooltip_height), 2, border_radius=10)
+
+            name_text = font.render(chef.name, True, (255, 255, 0))
+            desc_text = font.render(chef.description, True, (255, 255, 255))
+            screen.blit(name_text, (tooltip_x + 10, tooltip_y + 5))
+            screen.blit(desc_text, (tooltip_x + 10, tooltip_y + 30))
+
 # Score System
 goal_score = 100
 current_score = 0
 game_won = False
+
+active_chefs = [chefs.ChefJohn(), chefs.BuffedChef(), chefs.PickyChef()]
 
 running = True
 while running:
@@ -266,6 +305,8 @@ while running:
     else:
         draw_hand(hand)
         draw_score_panel()
+        draw_chefs()
+        draw_chef_tooltip()
         draw_play_button()
 
     pygame.display.flip()
