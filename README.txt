@@ -1,8 +1,8 @@
-# Overview
+<h1>Overview<h1>
 
 Bologna Kitchen is a Rogue-like game that you play as a chef in an high-stake underground cooking competition, and you have to cook the best meal ever made by combining various ingredients cards and using strong utensils. Become the strongest chef of the universe today.
 
-# Setup
+<h1>Setup<h1>
 
 1. Click on the version you want to download by navigating to the right bar of the github repository.
 2. Download Python on your device and install an IDE
