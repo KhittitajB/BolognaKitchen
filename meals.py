@@ -10,7 +10,7 @@ class Appetizer:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Appetizer"
             self.score = 5
             self.mult = 1
@@ -28,7 +28,7 @@ class SmallPlatter:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Small Platter"
             self.score = 10
             self.mult = 2
@@ -46,7 +46,7 @@ class DoubleCourse:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Double Course"
             self.score = 20
             self.mult = 2
@@ -64,7 +64,7 @@ class MediumPlatter:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Medium Platter"
             self.score = 30
             self.mult = 3
@@ -82,7 +82,7 @@ class Signature:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Signature Dish"
             self.score = 30
             self.mult = 4
@@ -100,7 +100,7 @@ class Feast:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Feast"
             self.score = 35
             self.mult = 4
@@ -118,7 +118,7 @@ class FullCourse:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Full Course Meal"
             self.score = 40
             self.mult = 4
@@ -136,7 +136,7 @@ class BigPlatter:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Big Platter"
             self.score = 60
             self.mult = 7
@@ -154,7 +154,7 @@ class ChefSpecial:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Chef's Special"
             self.score = 100
             self.mult = 8
@@ -172,7 +172,7 @@ class EnormousPlatter:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Enormous Platter"
             self.score = 120
             self.mult = 12
@@ -190,7 +190,7 @@ class FeastCourse:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Feast Course"
             self.score = 140
             self.mult = 14
@@ -208,7 +208,7 @@ class FeastPlatter:
         return cls._instance
 
     def __init__(self):
-        if not hasattr(self, "name", "score", "mult"):
+        if not hasattr(self, "name"):
             self.name = "Feast Platter"
             self.score = 160
             self.mult = 16
@@ -217,8 +217,20 @@ class FeastPlatter:
         self.score += 50
         self.mult += 3
 
+appetizer = Appetizer()
+smallplatter = SmallPlatter()
+doublecourse = DoubleCourse()
+mediumplatter = MediumPlatter()
+signature = Signature()
+feast = Feast()
+fullcourse = FullCourse()
+bigplatter = BigPlatter()
+chefspecial = ChefSpecial()
+enormousplatter = EnormousPlatter()
+feastcourse = FeastCourse()
+feastplatter = FeastPlatter()
 
-# VERY IMPORTANT
+
 def all_same(items):
     return all(x == items[0] for x in items)
 
@@ -241,20 +253,20 @@ def evaluate_hand(cards):
     # FLUSHES
     if len(suite_counts) == 5 and all_same(suite_counts):
         if count_same(size_counts) == 5:
-            return "Feast Platter"      # Flush Five
+            return feastplatter         # Flush Five
         else:
-            return "Feast"              # Flush
+            return feast                # Flush
     # NOT FLUSHES
     else:
         if count_same(size_counts) == 5:
-            return "Enormous Platter"   # Five of a Kind
+            return enormousplatter      # Five of a Kind
         elif count_same(size_counts) == 4:
-            return "Big Platter"        # Four of a Kind
+            return bigplatter           # Four of a Kind
         elif count_same(size_counts) == 3:
-            return "Medium Platter"     # Three of a Kind
+            return mediumplatter        # Three of a Kind
         elif count_same(size_counts) == 0:
-            return "Double Course"      # Two Pair
+            return doublecourse         # Two Pair
         elif count_same(size_counts) == 2:
-            return "Small Platter"      # Pair
+            return smallplatter         # Pair
         else:
-            return "Appetizer"          # High Card
+            return appetizer            # High Card
