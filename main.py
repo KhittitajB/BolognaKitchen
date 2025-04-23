@@ -88,6 +88,7 @@ pygame.display.set_caption("Bologna Kitchen")
 background_img = configs.background
 background_img = pygame.transform.scale(background_img, (configs.WIDTH, configs.HEIGHT))
 
+small_font = pygame.font.Font(None, 20)
 font = pygame.font.Font(None, 30)
 
 def draw_card(x, y, card, selected=False):
@@ -160,10 +161,11 @@ def draw_score_panel():
 
     if hand.selected:
         recieved_hand = meals.evaluate_hand(hand.selected) # Recieves hand name for further calcs
-        hand_text = font.render(f"Hand: {recieved_hand.name}", True, (0, 0, 0))
+        hand_text = font.render(f"{recieved_hand.name}", True, (0, 0, 0))
         screen.blit(hand_text, (configs.WIDTH // 2 - 50, 50))
+    plays_text = font.render(f"Hands {plays_left}", True, (0, 0, 0))
+    screen.blit(plays_text, (configs.WIDTH // 2 - 50, 90))
 
-# Played cards animation
 def animate_cards_to_center(cards):
     frames = 15
     center_x = configs.WIDTH // 2 - configs.CARD_WIDTH // 2
@@ -197,7 +199,10 @@ def animate_cards_to_center(cards):
         pygame.time.delay(25)
 
 def play_selected_cards():
-    global current_score, game_won
+    global current_score, game_won, plays_left
+
+    if plays_left <= 0:
+        return
 
     if not hand.selected:
         return
@@ -221,16 +226,58 @@ def play_selected_cards():
         hand.hand.remove(card)
     hand.selected.clear()
 
+    plays_left -= 1
+
     if current_score >= goal_score:
         game_won = True
 
     refill_hand()
 
+def draw_money():
+    money_text = font.render(f"${current_money}", True, (255, 255, 0))
+    text_rect = money_text.get_rect(bottomright=(40, configs.HEIGHT - 20))
+    screen.blit(money_text, text_rect)
+
+# REWORK THIS
 def draw_win_screen():
     screen.fill((0, 0, 0))
     win_text = font.render("You Win!", True, (255, 255, 0))
     win_rect = win_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2))
     screen.blit(win_text, win_rect)
+
+# REWORK THIS
+def draw_lose_screen():
+    screen.fill((0, 0, 0))
+    win_text = font.render("You Lose!", True, (255, 0, 0))
+    win_rect = win_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2))
+    screen.blit(win_text, win_rect)
+
+def open_shop():
+    global shop_chefs, shop_prices, shop
+
+    shop = True
+    shop_chefs = random.sample(chefs.chef_list, 3)
+    shop_prices = [x.price for x in shop_chefs]
+
+def draw_shop():
+    screen.fill((240, 230, 200))
+
+    shop_text = font.render("Chef Shop", True, (0, 0, 0))
+    screen.blit(shop_text, (configs.WIDTH // 2 - shop_text.get_width() // 2, 50))
+
+    for i, chef_class in enumerate(shop_chefs):
+        x = 100 + i * 200
+        y = 150
+        price = shop_prices[i]
+        chef_instance = chef_class()
+        chef_instance.draw(screen, x, y)
+        price_text = small_font.render(f"${price}", True, (0, 0, 0))
+        screen.blit(price_text, (x + 50, y + 170))
+
+    cont_button = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 60, 100, 40)
+    pygame.draw.rect(screen, (0, 100, 200), cont_button)
+    cont_text = font.render("Continue", True, (255, 255, 255))
+    screen.blit(cont_text, (cont_button.x + 10, cont_button.y + 10))
 
 
 dp = DrawPile()
@@ -279,12 +326,45 @@ def draw_chef_tooltip():
 goal_score = 100
 current_score = 0
 game_won = False
+shop = False
 
-active_chefs = [chefs.ChefJohn(), chefs.BuffedChef(), chefs.PickyChef()]
+max_plays_per_round = 4
+plays_left = max_plays_per_round
+
+current_money = 0
+phase = 1
+
+active_chefs = []
 
 running = True
 while running:
     screen.blit(background_img, (0,0))
+
+    if shop:
+        draw_shop()
+        pygame.display.flip()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = pygame.mouse.get_pos()
+                for i in range(len(shop_chefs)):
+                    x = 100 + i * 200
+                    y = 150
+                    box_rect = pygame.Rect(x, y, 150, 200)
+                    if box_rect.collidepoint(mouse_x, mouse_y):
+                        price = shop_prices[i]
+                        if current_money >= price:
+                            current_money -= price
+                            new_chef = shop_chefs[i]()
+                            active_chefs.append(new_chef)
+                            print(f"Bought {new_chef.name}!")
+
+                cont_button = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 60, 100, 40)
+                if cont_button.collidepoint(mouse_x, mouse_y):
+                    in_shop = False
+                    refill_hand()
+        continue
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -297,17 +377,43 @@ while running:
                 toggle_card_selection(clicked_card)
 
             play_rect = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 50, 100, 40)
-            if play_rect.collidepoint(pygame.mouse.get_pos()):
+            if play_rect.collidepoint(pygame.mouse.get_pos()) and plays_left > 0:
                 play_selected_cards()
 
-    if game_won:
-        draw_win_screen()
+    if game_won and not shop:
+        if phase == 4:
+            phase = 1
+
+        if phase == 1:
+            current_money += 3
+        elif phase == 2:
+            current_money += 4
+        elif phase == 3:
+            current_money += 5
+
+        current_money += plays_left
+        plays_left = max_plays_per_round
+
+        phase += 1
+        current_score = 0
+        goal_score += int(200 * 1.5 * phase)
+
+        open_shop()
+        shop = True
+
+        game_won = False
+
     else:
         draw_hand(hand)
         draw_score_panel()
         draw_chefs()
         draw_chef_tooltip()
         draw_play_button()
+        draw_money()
+
+    if plays_left == 0:
+            if not game_won:
+                draw_lose_screen()
 
     pygame.display.flip()
 
