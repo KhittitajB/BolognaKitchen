@@ -1,5 +1,6 @@
 import pygame
 import random
+import copy
 import configs
 import meals
 import chefs
@@ -59,26 +60,6 @@ class Hand:
         return f"{self.hand}"
 
 
-dp = DrawPile()
-hand = Hand()
-
-for i in range(11):
-    m = PlayingCard(i+1, "meat")
-    dp.pile.append(m)
-
-for i in range(11):
-    v = PlayingCard(i+1, "veggie")
-    dp.pile.append(v)
-
-for i in range(11):
-    g = PlayingCard(i+1, "grains")
-    dp.pile.append(g)
-
-for i in range(11):
-    d = PlayingCard(i+1, "dairy")
-    dp.pile.append(d)
-
-
 # MAIN
 pygame.init()
 
@@ -122,6 +103,7 @@ def toggle_card_selection(card):
     elif len(hand.selected) < 5:
         hand.selected.append(card)
 
+# NOT USED RIGHT NOW
 def draw_draw_pile(draw_pile):
     x = configs.WIDTH - 150
     y = configs.HEIGHT - configs.CARD_HEIGHT - 20
@@ -135,8 +117,15 @@ def draw_play_button():
     play_rect = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 50, 100, 40)
     pygame.draw.rect(screen, (0, 0, 255), play_rect)
     text_surface = font.render("Play", True, configs.WHITE)
-    screen.blit(text_surface, (configs.WIDTH // 2 - 20, configs.HEIGHT - 40))
+    screen.blit(text_surface, (configs.WIDTH // 2 - 22, configs.HEIGHT - 40))
     return play_rect
+
+def draw_discard_button():
+    discard_rect = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 100, 100, 40)
+    pygame.draw.rect(screen, (255, 0, 0), discard_rect)
+    text_surface = font.render("Discard", True, configs.WHITE)
+    screen.blit(text_surface, (configs.WIDTH // 2 - 38, configs.HEIGHT - 90))
+    return discard_rect
 
 def get_clicked_card(hand, mouse_pos):
     start_x = (configs.WIDTH - (len(hand.hand) * 100)) // 2
@@ -152,6 +141,12 @@ def get_clicked_card(hand, mouse_pos):
     return None
 
 def refill_hand():
+    if not dp.pile and len(hand.hand) < 8:
+        print("Draw pile empty and hand incomplete. Transitioning to shop or ending round.")
+        global game_lost
+        game_lost = True
+        return
+
     while len(hand.hand) < 8 and dp.pile:
         hand.add_to_hand(dp.pile.pop(random.randint(0, len(dp.pile) - 1)))
 
@@ -163,8 +158,10 @@ def draw_score_panel():
         recieved_hand = meals.evaluate_hand(hand.selected) # Recieves hand name for further calcs
         hand_text = font.render(f"{recieved_hand.name}", True, (0, 0, 0))
         screen.blit(hand_text, (configs.WIDTH // 2 - 50, 50))
+    discard_text = font.render(f"Discards {discards_left}", True, (0, 0, 0))
     plays_text = font.render(f"Hands {plays_left}", True, (0, 0, 0))
     screen.blit(plays_text, (configs.WIDTH // 2 - 50, 90))
+    screen.blit(discard_text, (configs.WIDTH // 2 - 50, 110))
 
 def animate_cards_to_center(cards):
     frames = 15
@@ -187,7 +184,6 @@ def animate_cards_to_center(cards):
         draw_hand(hand)
         draw_score_panel()
         draw_play_button()
-        draw_draw_pile(dp)
 
         for i, card in enumerate(cards):
             start_x, start_y = card_positions[i]
@@ -231,6 +227,26 @@ def play_selected_cards():
     if current_score >= goal_score:
         game_won = True
 
+    print("# Cards in Pile:", len(dp.pile))
+    print("Remaining Cards in Pile:", dp.pile)
+    # DEBUG LINE
+    refill_hand()
+
+def discard():
+    global discards_left
+
+    if plays_left <= 0:
+        return
+
+    if not hand.selected:
+        return
+
+    for card in hand.selected:
+        hand.hand.remove(card)
+    hand.selected.clear()
+
+    discards_left -= 1
+
     refill_hand()
 
 def draw_money():
@@ -252,32 +268,92 @@ def draw_lose_screen():
     win_rect = win_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2))
     screen.blit(win_text, win_rect)
 
+    restart_button = pygame.Rect(configs.WIDTH // 2 - 60, configs.HEIGHT // 2 + 20, 120, 40)
+    pygame.draw.rect(screen, (0, 100, 200), restart_button, border_radius=10)
+    restart_text = font.render("Restart", True, (255, 255, 255))
+    screen.blit(restart_text, (restart_button.x + 15, restart_button.y + 8))
+
+    return restart_button
+
 def open_shop():
-    global shop_chefs, shop_prices, shop
+    global shop_chefs, spices, shop_prices, shop
 
     shop = True
     shop_chefs = random.sample(chefs.chef_list, 3)
     shop_prices = [x.price for x in shop_chefs]
 
+if 'shop_spices' not in globals():
+    shop_spices = random.sample(list(meals.all_meals.items()), 2)
+    spice_purchased = [False, False]
+
+
 def draw_shop():
+    global spice_rects
+
     screen.fill((240, 230, 200))
 
     shop_text = font.render("Chef Shop", True, (0, 0, 0))
     screen.blit(shop_text, (configs.WIDTH // 2 - shop_text.get_width() // 2, 50))
 
-    for i, chef_class in enumerate(shop_chefs):
+    for i, chef_instance in enumerate(shop_chefs):
         x = 100 + i * 200
         y = 150
         price = shop_prices[i]
-        chef_instance = chef_class()
-        chef_instance.draw(screen, x, y)
-        price_text = small_font.render(f"${price}", True, (0, 0, 0))
-        screen.blit(price_text, (x + 50, y + 170))
+        try:
+            chef_instance.draw(screen, x, y)
+            price_text = small_font.render(f"${price}", True, (0, 0, 0))
+            screen.blit(price_text, (x + 50, y + 170))
+        except:
+            return
+
+        if getattr(chef_instance, 'purchased', False):
+            overlay = pygame.Surface((100, 150), pygame.SRCALPHA)
+            overlay.fill((0, 0, 0, 120))
+            screen.blit(overlay, (x, y))
+
+    spice_rects = []
+    for i, spice_name in enumerate(shop_spices):
+        x = 750
+        y = 150 + i * 200
+        rect = pygame.Rect(x, y, 120, 160)
+        spice_rects.append(rect)
+        print(spice_rects)
+
+        pygame.draw.rect(screen, (200, 100, 50), rect, border_radius=10)
+        name_text = small_font.render(spice_name[0], True, (255, 255, 255))
+        screen.blit(name_text, (x + 10, y + 20))
+
+        price_text = small_font.render("$10", True, (255, 255, 255))
+        screen.blit(price_text, (x + 35, y + 130))
+
+        if spice_purchased[i]:
+            overlay = pygame.Surface((120, 160), pygame.SRCALPHA)
+            overlay.fill((50, 50, 50, 180))
+            screen.blit(overlay, (x, y))
 
     cont_button = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 60, 100, 40)
     pygame.draw.rect(screen, (0, 100, 200), cont_button)
     cont_text = font.render("Continue", True, (255, 255, 255))
     screen.blit(cont_text, (cont_button.x + 10, cont_button.y + 10))
+
+    draw_money()
+
+    return spice_rects, cont_button
+
+def reset_game():
+    global current_score, plays_left, discards_left, game_lost, game_won, current_money, goal_score
+    goal_score = 100
+    current_score = 0
+    plays_left = max_plays_per_round
+    discards_left = max_discards_per_round
+    game_lost = False
+    game_won = False
+    current_money = 0
+    active_chefs.clear()
+    hand.hand.clear()
+    hand.selected.clear()
+    reset_dp()
+    refill_hand()
 
 
 dp = DrawPile()
@@ -286,6 +362,13 @@ hand = Hand()
 for suite in ["meat", "veggie", "grains", "dairy"]:
     for i in range(1, 12):
         dp.add_to_pile(PlayingCard(i, suite))
+
+# RESET DECK AFTER SHOP
+def reset_dp():
+    dp.pile = []
+    for suite in ["meat", "veggie", "grains", "dairy"]:
+        for i in range(1, 12):
+            dp.add_to_pile(PlayingCard(i, suite))
 
 for _ in range(8):
     hand.add_to_hand(dp.pile.pop(random.randint(0, len(dp.pile) - 1)))
@@ -322,14 +405,35 @@ def draw_chef_tooltip():
             screen.blit(name_text, (tooltip_x + 10, tooltip_y + 5))
             screen.blit(desc_text, (tooltip_x + 10, tooltip_y + 30))
 
+def draw_title_screen():
+    screen.fill((30, 30, 30))
+
+    title_text = font.render("Bologna Kitchen", True, (255, 255, 0))
+    start_text = font.render("Click to Start", True, (255, 255, 255))
+
+    title_rect = title_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2 - 40))
+    start_rect = start_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2 + 40))
+
+    screen.blit(title_text, title_rect)
+    screen.blit(start_text, start_rect)
+
 # Score System
+title_screen = True
+
 goal_score = 100
 current_score = 0
 game_won = False
 shop = False
 
+game_lost = False
+
 max_plays_per_round = 4
 plays_left = max_plays_per_round
+max_discards_per_round = 3
+discards_left = max_discards_per_round
+
+last_meal_score = 0
+last_meal_name = ""
 
 current_money = 0
 phase = 1
@@ -338,6 +442,18 @@ active_chefs = []
 
 running = True
 while running:
+    if title_screen:
+        draw_title_screen()
+        pygame.display.flip()
+
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            elif event.type == pygame.MOUSEBUTTONDOWN:
+                title_screen = False
+
+        continue
+
     screen.blit(background_img, (0,0))
 
     if shop:
@@ -346,25 +462,40 @@ while running:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 running = False
+
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse_x, mouse_y = pygame.mouse.get_pos()
+
+                # Chefs
                 for i in range(len(shop_chefs)):
                     x = 100 + i * 200
                     y = 150
                     box_rect = pygame.Rect(x, y, 150, 200)
                     if box_rect.collidepoint(mouse_x, mouse_y):
                         price = shop_prices[i]
-                        if current_money >= price:
+                        if price != None and current_money >= price:
                             current_money -= price
-                            new_chef = shop_chefs[i]()
+                            new_chef = shop_chefs[i]
                             active_chefs.append(new_chef)
                             print(f"Bought {new_chef.name}!")
+                            shop_prices[i] = None
+                            shop_chefs[i] = None
+
+                # Spices
+                for i, rect in enumerate(spice_rects):
+                    if rect.collidepoint(mouse_x, mouse_y):
+                        if not spice_purchased[i] and current_money >= 10:
+                            current_money -= 10
+                            spice_purchased[i] = True
+                            spice_name, spice_func = shop_spices[i]
+                            spice_func.level_up()
+                            print(f"Used {spice_name} spice!")
 
                 cont_button = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 60, 100, 40)
                 if cont_button.collidepoint(mouse_x, mouse_y):
-                    in_shop = False
+                    shop = False
                     refill_hand()
-        continue
+            continue
 
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
@@ -380,7 +511,13 @@ while running:
             if play_rect.collidepoint(pygame.mouse.get_pos()) and plays_left > 0:
                 play_selected_cards()
 
+            discard_rect = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 100, 100, 40)
+            if discard_rect.collidepoint(pygame.mouse.get_pos()) and discards_left > 0:
+                discard()
+
     if game_won and not shop:
+        reset_dp()
+
         if phase == 4:
             phase = 1
 
@@ -393,6 +530,7 @@ while running:
 
         current_money += plays_left
         plays_left = max_plays_per_round
+        discards_left = max_discards_per_round
 
         phase += 1
         current_score = 0
@@ -409,11 +547,17 @@ while running:
         draw_chefs()
         draw_chef_tooltip()
         draw_play_button()
+        draw_discard_button()
         draw_money()
 
-    if plays_left == 0:
-            if not game_won:
-                draw_lose_screen()
+    if plays_left == 0 and not game_won:
+        game_lost = True
+
+    if game_lost:
+        restart_button = draw_lose_screen()
+        if event.type == pygame.MOUSEBUTTONDOWN and restart_button.collidepoint(pygame.mouse.get_pos()):
+            reset_game()
+        pygame.display.flip()
 
     pygame.display.flip()
 
