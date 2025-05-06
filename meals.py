@@ -230,6 +230,21 @@ enormousplatter = EnormousPlatter()
 feastcourse = FeastCourse()
 feastplatter = FeastPlatter()
 
+all_meals = {
+    "Appetizer": appetizer,
+    "Small Platter": smallplatter,
+    "Double Course": doublecourse,
+    "Medium Platter": mediumplatter,
+    "Signature": signature,
+    "Feast": feast,
+    "Full Course": fullcourse,
+    "Big Platter": bigplatter,
+    "Chef Special": chefspecial,
+    "Enormous Platter": enormousplatter,
+    "Feast Course": feastcourse,
+    "Feast Platter": feastplatter,
+}
+
 
 def all_same(items):
     return all(x == items[0] for x in items)
