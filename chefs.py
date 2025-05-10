@@ -41,7 +41,7 @@ class ChefJohn(Chef):
     name = "Chef John"
     rarity = "Common"
     description = "+4 Mult"
-    image_path = "BolognaKitchen/assets_chef/ChefJohn.png"
+    image_path = "assets_chef/ChefJohn.png"
     price = 2
 
     def on_hand_evaluated(self, hand, score):
@@ -52,7 +52,7 @@ class BuffedChef(Chef):
     name = "Buffed Chef"
     rarity = "Common"
     description = "Played Meat give +3 Mult when scored"
-    image_path = "BolognaKitchen/assets_chef/buffed_chef.png"
+    image_path = "assets_chef/buffed_chef.png"
     price = 5
 
     def on_hand_evaluated(self, hand, score):
@@ -68,7 +68,7 @@ class KeenChef(Chef):
     name = "Keen Chef"
     rarity = "Common"
     description = "Played Veggies give +3 Mult when scored"
-    image_path = "BolognaKitchen/assets_chef/keen_chef.png"
+    image_path = "assets_chef/keen_chef.png"
     price = 5
 
     def on_hand_evaluated(self, hand, score):
@@ -84,7 +84,7 @@ class GrainyChef(Chef):
     name = "Grainy Chef"
     rarity = "Common"
     description = "Played Grains give +3 Mult when scored"
-    image_path = "BolognaKitchen/assets_chef/grainy_chef.png"
+    image_path = "assets_chef/grainy_chef.png"
     price = 5
 
     def on_hand_evaluated(self, hand, score):
@@ -100,7 +100,7 @@ class TallChef(Chef):
     name = "Tall Chef"
     rarity = "Common"
     description = "Played Dairy give +3 Mult when scored"
-    image_path = "BolognaKitchen/assets_chef/tall_chef.png"
+    image_path = "assets_chef/tall_chef.png"
     price = 5
 
     def on_hand_evaluated(self, hand, score):
@@ -117,7 +117,7 @@ class SmallChef(Chef):
     name = "Small Chef"
     rarity = "Common"
     description = "+50 Score if played hand contains a Small Platter"
-    image_path = "BolognaKitchen/assets_chef/small_chef.png"
+    image_path = "assets_chef/small_chef.png"
     price = 3
 
     def on_hand_evaluated(self, hand, score):
@@ -128,7 +128,7 @@ class BuddyChef(Chef):
     name = "Buddy Chef"
     rarity = "Common"
     description = "+80 Score if played hand contains a Double Course"
-    image_path = "BolognaKitchen/assets_chef/buddy_chef.png"
+    image_path = "assets_chef/buddy_chef.png"
     price = 3
 
     def on_hand_evaluated(self, hand, score):
@@ -139,7 +139,7 @@ class MediocreChef(Chef):
     name = "Mediocre Chef"
     rarity = "Common"
     description = "+100 Score if played hand contains a Medium Platter"
-    image_path = "BolognaKitchen/assets_chef/mediocre_chef.png"
+    image_path = "assets_chef/mediocre_chef.png"
     price = 3
 
     def on_hand_evaluated(self, hand, score):
@@ -150,7 +150,7 @@ class OldChef(Chef):
     name = "Old Chef"
     rarity = "Common"
     description = "+100 Score if played hand contains a Signature"
-    image_path = "BolognaKitchen/assets_chef/old_chef.png"
+    image_path = "assets_chef/old_chef.png"
     price = 3
 
     def on_hand_evaluated(self, hand, score):
@@ -161,7 +161,7 @@ class PickyChef(Chef):
     name = "Picky Chef"
     rarity = "Common"
     description = "+80 Score if played hand contains a Feast"
-    image_path = "BolognaKitchen/assets_chef/picky_chef.png"
+    image_path = "assets_chef/picky_chef.png"
     price = 3
 
     def on_hand_evaluated(self, hand, score):
@@ -172,7 +172,7 @@ class BigChef(Chef):
     name = "Big Chef"
     rarity = "Common"
     description = "+200 Score if played hand contains a Big Platter"
-    image_path = "BolognaKitchen/assets_chef/big_chef.png"
+    image_path = "assets_chef/big_chef.png"
     price = 3
 
     def on_hand_evaluated(self, hand, score):
