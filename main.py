@@ -344,24 +344,31 @@ def draw_lose_screen():
     high_score_text = small_font.render(f"Highest Hand: {highest_hand}", True, (255, 255, 255))
     screen.blit(high_score_text, ((configs.WIDTH // 2) - 55, (configs.HEIGHT // 2) + 100))
 
+    high_score_text = small_font.render(f"Highest Round: {highest_round}", True, (255, 255, 255))
+    screen.blit(high_score_text, ((configs.WIDTH // 2) - 55, (configs.HEIGHT // 2) + 120))
+
     return restart_button
-
-def open_shop():
-    global shop_chefs, shop_prices, shop
-
-    shop = True
-    shop_chefs = random.sample(chefs.chef_list, 3)
-    shop_prices = [x.price for x in shop_chefs]
 
 if 'shop_spices' not in globals():
     shop_spices = random.sample(list(meals.all_meals.items()), 2)
     spice_purchased = [False, False]
 
+def open_shop():
+    global shop_chefs, shop_prices, shop, shop_spices, spice_purchased
+
+    shop = True
+    shop_chefs = random.sample(chefs.chef_list, 3)
+    shop_prices = [x.price for x in shop_chefs]
+
+    shop_spices = random.sample(list(meals.all_meals.items()), 2)
+    spice_purchased = [False, False]
+
+
 shop_background_img = pygame.image.load("assets/freezer.png").convert()
 shop_background_img = pygame.transform.scale(shop_background_img, (configs.WIDTH, configs.HEIGHT))
 
 def draw_shop():
-    global spice_rects
+    global spice_rects, reroll_button
 
     screen.blit(shop_background_img, (0, 0))
 
@@ -409,9 +416,43 @@ def draw_shop():
     cont_text = font.render("Continue", True, (255, 255, 255))
     screen.blit(cont_text, (cont_button.x + 10, cont_button.y + 10))
 
+    reroll_button = pygame.Rect(configs.WIDTH // 2 - 60, configs.HEIGHT - 110, 120, 40)
+    pygame.draw.rect(screen, (200, 50, 50), reroll_button, border_radius=10)
+    reroll_text = font.render("Reroll ($3)", True, (255, 255, 255))
+    screen.blit(reroll_text, (reroll_button.x + 5, reroll_button.y + 8))
+
     draw_money()
 
-    return spice_rects, cont_button
+    mouse_x, mouse_y = pygame.mouse.get_pos()
+    for i, chef in enumerate(shop_chefs):
+        x = 100 + i * 200
+        y = 150
+        box_rect = pygame.Rect(x, y, 150, 200)
+
+        if chef and box_rect.collidepoint(mouse_x, mouse_y):
+            draw_chef_tooltip(chef, mouse_x, mouse_y)
+
+    return spice_rects, cont_button, reroll_button
+
+def draw_chef_tooltip(chef, x, y):
+    tooltip_width = 200
+    tooltip_height = 100
+    tooltip_rect = pygame.Rect(x + 10, y + 10, tooltip_width, tooltip_height)
+
+    pygame.draw.rect(screen, (255, 255, 240), tooltip_rect)
+    pygame.draw.rect(screen, (0, 0, 0), tooltip_rect, 2)
+
+    name_text = small_font.render(chef.name, True, (0, 0, 0))
+    screen.blit(name_text, (tooltip_rect.x + 10, tooltip_rect.y + 10))
+
+    if hasattr(chef, "description"):
+        desc_text = small_font.render(chef.description, True, (0, 0, 0))
+        screen.blit(desc_text, (tooltip_rect.x + 10, tooltip_rect.y + 40))
+
+def generate_shop_chefs():
+    new_chefs = [random.choice(chefs.chef_list) for _ in range(3)]
+    new_prices = [random.randint(3, 6) for _ in new_chefs]
+    return new_chefs, new_prices
 
 def reset_game():
     global current_score, plays_left, discards_left, game_lost, game_won, current_money, goal_score, highest_hand
@@ -490,34 +531,14 @@ for _ in range(8):
 chef_positions = []
 
 def draw_chefs():
-    chef_positions.clear()
-    x = 20
-    y = 40
-    for chef in active_chefs:
-        if chef.image:
-            screen.blit(chef.image, (x, y))
-        else:
-            pygame.draw.rect(screen, (60, 60, 60), (x, y, 80, 80), border_radius=10)
-
-        chef_positions.append((pygame.Rect(x, y, 120, 80), chef))
-
-        x += 110
-
-def draw_chef_tooltip():
-    mouse_pos = pygame.mouse.get_pos()
-    for rect, chef in chef_positions:
-        if rect.collidepoint(mouse_pos):
-            tooltip_width = 400
-            tooltip_height = 60
-            tooltip_x = rect.x
-            tooltip_y = rect.y + rect.height + 10
-            pygame.draw.rect(screen, (0, 0, 0), (tooltip_x, tooltip_y, tooltip_width, tooltip_height), border_radius=10)
-            pygame.draw.rect(screen, (255, 255, 0), (tooltip_x, tooltip_y, tooltip_width, tooltip_height), 2, border_radius=10)
-
-            name_text = font.render(chef.name, True, (255, 255, 0))
-            desc_text = font.render(chef.description, True, (255, 255, 255))
-            screen.blit(name_text, (tooltip_x + 10, tooltip_y + 5))
-            screen.blit(desc_text, (tooltip_x + 10, tooltip_y + 30))
+    chef_rects = []
+    for i, chef in enumerate(active_chefs):
+        x = 100 + i * 160
+        y = 10
+        chef.draw(screen, x, y)
+        rect = pygame.Rect(x, y, 150, 200)
+        chef_rects.append((rect, chef))
+    return chef_rects
 
 def draw_title_screen():
     title_img = pygame.image.load("assets/title.png").convert()
@@ -535,6 +556,7 @@ pygame.mixer.music.play(-1)
 title_screen = True
 
 highest_hand = 0
+highest_round = 0
 
 goal_score = 100
 current_score = 0
@@ -551,7 +573,7 @@ discards_left = max_discards_per_round
 last_meal_score = 0
 last_meal_name = ""
 
-current_money = 0
+current_money = 3
 phase = 1
 
 active_chefs = []
@@ -587,9 +609,26 @@ def log_chef_to_csv(chef):
         updated_df = pd.concat([existing_df, df], ignore_index=True)
         updated_df.to_csv(file_path, index=False)
 
+def log_shop_activity(action_type):
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    entry = {
+        'timestamp': timestamp,
+        'action': action_type,
+    }
+
+    try:
+        df = pd.read_csv("data/shop_activities.csv")
+        df = pd.concat([df, pd.DataFrame([entry])], ignore_index=True)
+    except FileNotFoundError:
+        df = pd.DataFrame([entry])
+    except pd.errors.EmptyDataError:
+        df = pd.DataFrame([entry])
+
+    df.to_csv("data/shop_activities.csv", index=False)
+
 # Shop
 def handle_shop(events):
-    global shop, current_money
+    global shop, current_money, shop_chefs, shop_prices
 
     screen.blit(background_img, (0, 0))
     draw_shop()
@@ -609,14 +648,18 @@ def handle_shop(events):
                 if box_rect.collidepoint(mouse_x, mouse_y):
                     price = shop_prices[i]
                     if price is not None and current_money >= price:
-                        buy_sound.play()
-                        current_money -= price
-                        new_chef = shop_chefs[i]
-                        active_chefs.append(new_chef)
-                        log_chef_to_csv(new_chef)
-                        print(f"Bought {new_chef.name}!")
-                        shop_prices[i] = None
-                        shop_chefs[i] = None
+                        if len(active_chefs) < 5:
+                            buy_sound.play()
+                            current_money -= price
+                            new_chef = shop_chefs[i]
+                            active_chefs.append(new_chef)
+                            log_chef_to_csv(new_chef)
+                            log_shop_activity("Buy Chef")
+                            print(f"Bought {new_chef.name}!")
+                            shop_prices[i] = None
+                            shop_chefs[i] = None
+                        else:
+                            print("You already have the maximum number of chefs!")
 
             # Spices
             for i, rect in enumerate(spice_rects):
@@ -626,6 +669,7 @@ def handle_shop(events):
                         current_money -= 5
                         spice_purchased[i] = True
                         spice_name, spice_func = shop_spices[i]
+                        log_shop_activity("Buy Spice")
                         spice_func.level_up()
                         print(f"Used {spice_name} spice!")
 
@@ -634,30 +678,57 @@ def handle_shop(events):
                 shop = False
                 refill_hand()
 
+            if reroll_button.collidepoint(mouse_x, mouse_y) and current_money >= 3:
+                buy_sound.play()
+                current_money -= 3
+                shop_chefs, shop_prices = generate_shop_chefs()
+                log_shop_activity("Reroll Shop")
+
 # Main Game
 def handle_gameplay(events):
-    global plays_left, discards_left, game_won, game_lost
+    global plays_left, discards_left, game_won, game_lost, chef_click_rects, current_money
 
     screen.blit(background_img, (0, 0))
+
+    mouse_pos = pygame.mouse.get_pos()
+    hovered_chef = None
 
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN:
             clicked_card = get_clicked_card(hand, pygame.mouse.get_pos())
+
+            if not shop and not title_screen:
+                for rect, chef in chef_click_rects:
+                    if rect.collidepoint(mouse_pos):
+                        if chef in active_chefs:
+                            refund = chef.price // 2
+                            current_money += refund
+                            print(f"Sold {chef.name} for ${refund}")
+                            active_chefs.remove(chef)
+
             if clicked_card:
                 toggle_card_selection(clicked_card)
 
             play_rect = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 50, 100, 40)
-            if play_rect.collidepoint(pygame.mouse.get_pos()) and plays_left > 0:
+            if play_rect.collidepoint(mouse_pos) and plays_left > 0:
                 play_selected_cards()
 
             discard_rect = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 100, 100, 40)
-            if discard_rect.collidepoint(pygame.mouse.get_pos()) and discards_left > 0:
+            if discard_rect.collidepoint(mouse_pos) and discards_left > 0:
                 discard()
 
     draw_hand(hand)
     draw_score_panel()
-    draw_chefs()
-    draw_chef_tooltip()
+    chef_click_rects = draw_chefs()
+
+    for rect, chef in chef_click_rects:
+        if rect.collidepoint(mouse_pos):
+            hovered_chef = chef
+            break
+
+    if hovered_chef:
+        draw_chef_tooltip(hovered_chef, mouse_pos[0] + 10, mouse_pos[1] + 10)
+
     draw_play_button()
     draw_discard_button()
     draw_money()
@@ -669,11 +740,12 @@ def handle_gameplay(events):
 # Win Screen
 def handle_game_win():
     global phase, current_money, plays_left, discards_left
-    global current_score, goal_score, game_won, shop
+    global current_score, goal_score, game_won, shop, highest_round
 
     reset_dp()
 
     phase += 1
+    highest_round += 1
     # print(phase, phase%3)
     # DEBUG LINE
 
@@ -717,6 +789,15 @@ def main_game_loop():
                     print("[!] Hands")
                     meals.represent()
                     print("========================================")
+
+                if event.key == pygame.K_1:
+                    hand.hand.sort(key=lambda card: card.size)
+                    print("Hand sorted by number.")
+
+                if event.key == pygame.K_2:
+                    suit_order = {"meat": 0, "veggie": 1, "grains": 2, "dairy": 3}
+                    hand.hand.sort(key=lambda card: suit_order.get(card.suite, 99))
+                    print("Hand sorted by suit.")
 
                 global volume
                 if event.key == pygame.K_UP:
