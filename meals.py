@@ -14,10 +14,15 @@ class Appetizer:
             self.name = "Appetizer"
             self.score = 5
             self.mult = 1
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 10
         self.mult += 1
+        self.level += 1
 
 class SmallPlatter:
     _instance = None
@@ -32,10 +37,15 @@ class SmallPlatter:
             self.name = "Small Platter"
             self.score = 10
             self.mult = 2
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 15
         self.mult += 1
+        self.level += 1
 
 class DoubleCourse:
     _instance = None
@@ -50,10 +60,15 @@ class DoubleCourse:
             self.name = "Double Course"
             self.score = 20
             self.mult = 2
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 20
         self.mult += 1
+        self.level += 1
 
 class MediumPlatter:
     _instance = None
@@ -68,10 +83,15 @@ class MediumPlatter:
             self.name = "Medium Platter"
             self.score = 30
             self.mult = 3
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 20
         self.mult += 2
+        self.level += 1
 
 class Signature:
     _instance = None
@@ -86,10 +106,15 @@ class Signature:
             self.name = "Signature Dish"
             self.score = 30
             self.mult = 4
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 30
         self.mult += 3
+        self.level += 1
 
 class Feast:
     _instance = None
@@ -104,10 +129,15 @@ class Feast:
             self.name = "Feast"
             self.score = 35
             self.mult = 4
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 15
         self.mult += 2
+        self.level += 1
 
 class FullCourse:
     _instance = None
@@ -122,10 +152,15 @@ class FullCourse:
             self.name = "Full Course Meal"
             self.score = 40
             self.mult = 4
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 25
         self.mult += 2
+        self.level += 1
 
 class BigPlatter:
     _instance = None
@@ -140,10 +175,15 @@ class BigPlatter:
             self.name = "Big Platter"
             self.score = 60
             self.mult = 7
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 30
         self.mult += 3
+        self.level += 1
 
 class ChefSpecial:
     _instance = None
@@ -158,10 +198,15 @@ class ChefSpecial:
             self.name = "Chef's Special"
             self.score = 100
             self.mult = 8
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 40
         self.mult += 4
+        self.level += 1
 
 class EnormousPlatter:
     _instance = None
@@ -176,10 +221,15 @@ class EnormousPlatter:
             self.name = "Enormous Platter"
             self.score = 120
             self.mult = 12
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 35
         self.mult += 3
+        self.level += 1
 
 class FeastCourse:
     _instance = None
@@ -194,10 +244,15 @@ class FeastCourse:
             self.name = "Feast Course"
             self.score = 140
             self.mult = 14
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 40
         self.mult += 4
+        self.level += 1
 
 class FeastPlatter:
     _instance = None
@@ -212,10 +267,15 @@ class FeastPlatter:
             self.name = "Feast Platter"
             self.score = 160
             self.mult = 16
+            self.level = 1
+
+    def __str__(self):
+        return f"Level {self.level} {self.name} : {self.score}x{self.mult} Score"
 
     def level_up(self):
         self.score += 50
         self.mult += 3
+        self.level += 1
 
 appetizer = Appetizer()
 smallplatter = SmallPlatter()
@@ -253,8 +313,13 @@ def count_same(items):
     count = Counter(items)
     max_freq = max(count.values())
 
-    if list(count.values()).count(max_freq) > 1:
+    if all(list(count.values())[i] < list(count.values())[i+1] for i in range(len(list(count.values())) - 1)) and len(list(count.values())) == 5:
+        return -1
+    if list(count.values()).count(max_freq) > 1 and 2 in list(count.values()):
         return 0
+    if 2 in list(count.values()) and 3 in list(count.values()):
+        return 10
+
     return max_freq
 
 def evaluate_hand(cards):
@@ -269,6 +334,10 @@ def evaluate_hand(cards):
     if len(suite_counts) == 5 and all_same(suite_counts):
         if count_same(size_counts) == 5:
             return feastplatter         # Flush Five
+        elif count_same(size_counts) == -1:
+            return chefspecial          # Straight Flush
+        elif count_same(size_counts) == 10:
+            return feastcourse          # Flush House
         else:
             return feast                # Flush
     # NOT FLUSHES
@@ -277,6 +346,10 @@ def evaluate_hand(cards):
             return enormousplatter      # Five of a Kind
         elif count_same(size_counts) == 4:
             return bigplatter           # Four of a Kind
+        elif count_same(size_counts) == -1:
+            return signature            # Straight
+        elif count_same(size_counts) == 10:
+            return fullcourse           # Full House
         elif count_same(size_counts) == 3:
             return mediumplatter        # Three of a Kind
         elif count_same(size_counts) == 0:
@@ -285,3 +358,17 @@ def evaluate_hand(cards):
             return smallplatter         # Pair
         else:
             return appetizer            # High Card
+
+def represent():
+    print(appetizer)
+    print(smallplatter)
+    print(doublecourse)
+    print(mediumplatter)
+    print(signature)
+    print(feast)
+    print(fullcourse)
+    print(bigplatter)
+    print(chefspecial)
+    print(enormousplatter)
+    print(feastcourse)
+    print(feastplatter)
