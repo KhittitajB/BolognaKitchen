@@ -1,9 +1,17 @@
 import pygame
 import random
-import copy
 import configs
 import meals
 import chefs
+import tkinter as tk
+import pandas as pd
+import matplotlib.pyplot as plt
+import threading
+import datetime
+import os
+
+from tkinter import ttk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 class PlayingCard:
     def __init__(self, size, suite):
@@ -127,6 +135,9 @@ def draw_discard_button():
     screen.blit(text_surface, (configs.WIDTH // 2 - 38, configs.HEIGHT - 90))
     return discard_rect
 
+# Click Sound
+click_sound = pygame.mixer.Sound("assets/select_card.mp3")
+
 def get_clicked_card(hand, mouse_pos):
     start_x = (configs.WIDTH - (len(hand.hand) * 100)) // 2
     y = configs.HEIGHT - configs.CARD_HEIGHT - 120
@@ -137,6 +148,9 @@ def get_clicked_card(hand, mouse_pos):
         card_rect = pygame.Rect(x, y, configs.CARD_WIDTH, configs.CARD_HEIGHT)
 
         if card_rect.collidepoint(mouse_pos):
+            pygame.mixer.music.set_volume(volume)
+            click_sound.set_volume(volume)
+            click_sound.play()
             return card
     return None
 
@@ -151,15 +165,15 @@ def refill_hand():
         hand.add_to_hand(dp.pile.pop(random.randint(0, len(dp.pile) - 1)))
 
 def draw_score_panel():
-    score_text = font.render(f"Score: {current_score} / {goal_score}", True, (0, 0, 0))
+    score_text = font.render(f"Score: {current_score} / {goal_score}", True, (0,0,0))
     screen.blit(score_text, (configs.WIDTH // 2 - 50, 20))
 
     if hand.selected:
         recieved_hand = meals.evaluate_hand(hand.selected) # Recieves hand name for further calcs
-        hand_text = font.render(f"{recieved_hand.name}", True, (0, 0, 0))
+        hand_text = font.render(f"{recieved_hand.name}", True, (0,0,0))
         screen.blit(hand_text, (configs.WIDTH // 2 - 50, 50))
-    discard_text = font.render(f"Discards {discards_left}", True, (0, 0, 0))
-    plays_text = font.render(f"Hands {plays_left}", True, (0, 0, 0))
+    discard_text = font.render(f"Discards {discards_left}", True, (0,0,0))
+    plays_text = font.render(f"Hands {plays_left}", True, (0,0,0))
     screen.blit(plays_text, (configs.WIDTH // 2 - 50, 90))
     screen.blit(discard_text, (configs.WIDTH // 2 - 50, 110))
 
@@ -194,8 +208,60 @@ def animate_cards_to_center(cards):
         pygame.display.flip()
         pygame.time.delay(25)
 
+def log_hand_to_csv(hand_name, score):
+    new_row = {"Timestamp": datetime.datetime.now().isoformat(), "Hand": hand_name, "Score": score}
+    file_path = "data/hands_played.csv"
+
+    if not os.path.isfile(file_path) or os.path.getsize(file_path) == 0:
+        df = pd.DataFrame([new_row])
+        df.to_csv(file_path, index=False)
+    else:
+        df = pd.read_csv(file_path)
+        df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
+        df.to_csv(file_path, index=False)
+
+def log_played_to_csv(cards):
+    file_path = "data/cards_played.csv"
+    rows = []
+
+    for card in cards:
+        rows.append({
+            "Timestamp": datetime.datetime.now().isoformat(),
+            "Card Suite": card.suite,
+            "Value": card.size
+        })
+
+    df = pd.DataFrame(rows)
+
+    if not os.path.isfile(file_path) or os.path.getsize(file_path) == 0:
+        df.to_csv(file_path, index=False)
+    else:
+        existing_df = pd.read_csv(file_path)
+        updated_df = pd.concat([existing_df, df], ignore_index=True)
+        updated_df.to_csv(file_path, index=False)
+
+def log_discarded_to_csv(cards):
+    file_path = "data/cards_discarded.csv"
+    rows = []
+
+    for card in cards:
+        rows.append({
+            "Timestamp": datetime.datetime.now().isoformat(),
+            "Card Suite": card.suite,
+            "Value": card.size
+        })
+
+    df = pd.DataFrame(rows)
+
+    if not os.path.isfile(file_path) or os.path.getsize(file_path) == 0:
+        df.to_csv(file_path, index=False)
+    else:
+        existing_df = pd.read_csv(file_path)
+        updated_df = pd.concat([existing_df, df], ignore_index=True)
+        updated_df.to_csv(file_path, index=False)
+
 def play_selected_cards():
-    global current_score, game_won, plays_left
+    global current_score, game_won, plays_left, highest_hand
 
     if plays_left <= 0:
         return
@@ -217,6 +283,8 @@ def play_selected_cards():
 
     added_score = score_dict["score"] * score_dict["mult"]
     current_score += added_score
+    log_hand_to_csv(hand_obj.name ,added_score)
+    log_played_to_csv(hand.selected)
 
     for card in hand.selected:
         hand.hand.remove(card)
@@ -227,8 +295,11 @@ def play_selected_cards():
     if current_score >= goal_score:
         game_won = True
 
-    print("# Cards in Pile:", len(dp.pile))
-    print("Remaining Cards in Pile:", dp.pile)
+    if current_score > highest_hand:
+        highest_hand = current_score
+
+    # print("# Cards in Pile:", len(dp.pile))
+    # print("Remaining Cards in Pile:", dp.pile)
     # DEBUG LINE
     refill_hand()
 
@@ -243,6 +314,7 @@ def discard():
 
     for card in hand.selected:
         hand.hand.remove(card)
+    log_discarded_to_csv(hand.selected)
     hand.selected.clear()
 
     discards_left -= 1
@@ -254,16 +326,12 @@ def draw_money():
     text_rect = money_text.get_rect(bottomright=(40, configs.HEIGHT - 20))
     screen.blit(money_text, text_rect)
 
-# REWORK THIS
-def draw_win_screen():
-    screen.fill((0, 0, 0))
-    win_text = font.render("You Win!", True, (255, 255, 0))
-    win_rect = win_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2))
-    screen.blit(win_text, win_rect)
-
-# REWORK THIS
 def draw_lose_screen():
-    screen.fill((0, 0, 0))
+    lose_screen_bg = pygame.image.load("assets/lose_screen.png").convert()
+    lose_screen_bg = pygame.transform.scale(lose_screen_bg, (configs.WIDTH, configs.HEIGHT))
+
+    screen.blit(lose_screen_bg, (0, 0))
+
     win_text = font.render("You Lose!", True, (255, 0, 0))
     win_rect = win_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2))
     screen.blit(win_text, win_rect)
@@ -273,10 +341,13 @@ def draw_lose_screen():
     restart_text = font.render("Restart", True, (255, 255, 255))
     screen.blit(restart_text, (restart_button.x + 15, restart_button.y + 8))
 
+    high_score_text = small_font.render(f"Highest Hand: {highest_hand}", True, (255, 255, 255))
+    screen.blit(high_score_text, ((configs.WIDTH // 2) - 55, (configs.HEIGHT // 2) + 100))
+
     return restart_button
 
 def open_shop():
-    global shop_chefs, spices, shop_prices, shop
+    global shop_chefs, shop_prices, shop
 
     shop = True
     shop_chefs = random.sample(chefs.chef_list, 3)
@@ -286,25 +357,28 @@ if 'shop_spices' not in globals():
     shop_spices = random.sample(list(meals.all_meals.items()), 2)
     spice_purchased = [False, False]
 
+shop_background_img = pygame.image.load("assets/freezer.png").convert()
+shop_background_img = pygame.transform.scale(shop_background_img, (configs.WIDTH, configs.HEIGHT))
 
 def draw_shop():
     global spice_rects
 
-    screen.fill((240, 230, 200))
+    screen.blit(shop_background_img, (0, 0))
 
     shop_text = font.render("Chef Shop", True, (0, 0, 0))
     screen.blit(shop_text, (configs.WIDTH // 2 - shop_text.get_width() // 2, 50))
 
     for i, chef_instance in enumerate(shop_chefs):
+        if chef_instance is None:
+            continue
+
         x = 100 + i * 200
         y = 150
         price = shop_prices[i]
-        try:
-            chef_instance.draw(screen, x, y)
-            price_text = small_font.render(f"${price}", True, (0, 0, 0))
-            screen.blit(price_text, (x + 50, y + 170))
-        except:
-            return
+
+        chef_instance.draw(screen, x, y)
+        price_text = small_font.render(f"${price}", True, (0, 0, 0))
+        screen.blit(price_text, (x + 50, y + 170))
 
         if getattr(chef_instance, 'purchased', False):
             overlay = pygame.Surface((100, 150), pygame.SRCALPHA)
@@ -317,13 +391,12 @@ def draw_shop():
         y = 150 + i * 200
         rect = pygame.Rect(x, y, 120, 160)
         spice_rects.append(rect)
-        print(spice_rects)
 
         pygame.draw.rect(screen, (200, 100, 50), rect, border_radius=10)
         name_text = small_font.render(spice_name[0], True, (255, 255, 255))
         screen.blit(name_text, (x + 10, y + 20))
 
-        price_text = small_font.render("$10", True, (255, 255, 255))
+        price_text = small_font.render("$5", True, (255, 255, 255))
         screen.blit(price_text, (x + 35, y + 130))
 
         if spice_purchased[i]:
@@ -341,8 +414,9 @@ def draw_shop():
     return spice_rects, cont_button
 
 def reset_game():
-    global current_score, plays_left, discards_left, game_lost, game_won, current_money, goal_score
+    global current_score, plays_left, discards_left, game_lost, game_won, current_money, goal_score, highest_hand
     goal_score = 100
+    highest_hand = 0
     current_score = 0
     plays_left = max_plays_per_round
     discards_left = max_discards_per_round
@@ -354,6 +428,46 @@ def reset_game():
     hand.selected.clear()
     reset_dp()
     refill_hand()
+
+csv_files = ["data/cards_played.csv",
+             "data/cards_discarded.csv",
+             "data/chef_bought.csv",
+             "data/hands_played.csv",
+             "data/shop_activities.csv"]
+
+def open_tk_window_with_tabs():
+    root = tk.Tk()
+    root.title("CSV Histogram Tabs")
+    root.geometry("800x600")
+
+    notebook = ttk.Notebook(root)
+    notebook.pack(fill='both', expand=True)
+
+    for file_path in csv_files:
+        try:
+            df = pd.read_csv(file_path)
+            numeric_columns = df.select_dtypes(include='number').columns
+
+            if numeric_columns.empty:
+                continue
+
+            column = numeric_columns[0]
+
+            tab = ttk.Frame(notebook)
+            notebook.add(tab, text=file_path.split("/")[-1])
+
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.hist(df[column], bins=10, color="skyblue", edgecolor="black")
+            ax.set_title(f"Histogram of {column}")
+
+            canvas = FigureCanvasTkAgg(fig, master=tab)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        except Exception as e:
+            print(f"Failed to process {file_path}: {e}")
+
+    root.mainloop()
 
 
 dp = DrawPile()
@@ -406,19 +520,21 @@ def draw_chef_tooltip():
             screen.blit(desc_text, (tooltip_x + 10, tooltip_y + 30))
 
 def draw_title_screen():
-    screen.fill((30, 30, 30))
+    title_img = pygame.image.load("assets/title.png").convert()
+    title_img = pygame.transform.scale(title_img, (configs.WIDTH, configs.HEIGHT))
+    screen.blit(title_img, (0, 0))
 
-    title_text = font.render("Bologna Kitchen", True, (255, 255, 0))
-    start_text = font.render("Click to Start", True, (255, 255, 255))
-
-    title_rect = title_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2 - 40))
-    start_rect = start_text.get_rect(center=(configs.WIDTH // 2, configs.HEIGHT // 2 + 40))
-
-    screen.blit(title_text, title_rect)
-    screen.blit(start_text, start_rect)
+# Music
+pygame.mixer.init()
+pygame.mixer.music.load("assets/orchestra.mp3")
+volume = 0.5
+pygame.mixer.music.set_volume(volume)
+pygame.mixer.music.play(-1)
 
 # Score System
 title_screen = True
+
+highest_hand = 0
 
 goal_score = 100
 current_score = 0
@@ -440,70 +556,93 @@ phase = 1
 
 active_chefs = []
 
-running = True
-while running:
-    if title_screen:
-        draw_title_screen()
-        pygame.display.flip()
+# SCREEN MANAGERS
 
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                title_screen = False
+# Title
+def handle_title_screen(events):
+    global title_screen
+    draw_title_screen()
 
-        continue
+    for event in events:
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            title_screen = False
 
-    screen.blit(background_img, (0,0))
+buy_sound = pygame.mixer.Sound("assets/buy_chef.mp3")
 
-    if shop:
-        draw_shop()
-        pygame.display.flip()
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
+def log_chef_to_csv(chef):
+    file_path = "data/chef_bought.csv"
+    row = {
+        "Timestamp": datetime.datetime.now().isoformat(),
+        "Chef Name": chef.name,
+        "Rarity": chef.rarity,
+        "Price": chef.price
+    }
 
-            elif event.type == pygame.MOUSEBUTTONDOWN:
-                mouse_x, mouse_y = pygame.mouse.get_pos()
+    df = pd.DataFrame([row])
 
-                # Chefs
-                for i in range(len(shop_chefs)):
-                    x = 100 + i * 200
-                    y = 150
-                    box_rect = pygame.Rect(x, y, 150, 200)
-                    if box_rect.collidepoint(mouse_x, mouse_y):
-                        price = shop_prices[i]
-                        if price != None and current_money >= price:
-                            current_money -= price
-                            new_chef = shop_chefs[i]
-                            active_chefs.append(new_chef)
-                            print(f"Bought {new_chef.name}!")
-                            shop_prices[i] = None
-                            shop_chefs[i] = None
+    if not os.path.isfile(file_path) or os.path.getsize(file_path) == 0:
+        df.to_csv(file_path, index=False)
+    else:
+        existing_df = pd.read_csv(file_path)
+        updated_df = pd.concat([existing_df, df], ignore_index=True)
+        updated_df.to_csv(file_path, index=False)
 
-                # Spices
-                for i, rect in enumerate(spice_rects):
-                    if rect.collidepoint(mouse_x, mouse_y):
-                        if not spice_purchased[i] and current_money >= 10:
-                            current_money -= 10
-                            spice_purchased[i] = True
-                            spice_name, spice_func = shop_spices[i]
-                            spice_func.level_up()
-                            print(f"Used {spice_name} spice!")
+# Shop
+def handle_shop(events):
+    global shop, current_money
 
-                cont_button = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 60, 100, 40)
-                if cont_button.collidepoint(mouse_x, mouse_y):
-                    shop = False
-                    refill_hand()
-            continue
+    screen.blit(background_img, (0, 0))
+    draw_shop()
 
-    for event in pygame.event.get():
-        if event.type == pygame.QUIT:
-            running = False
+    for event in events:
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            mouse_x, mouse_y = pygame.mouse.get_pos()
 
-        if not game_won and event.type == pygame.MOUSEBUTTONDOWN:
+            pygame.mixer.music.set_volume(volume)
+            buy_sound.set_volume(volume)
+
+            # Chefs
+            for i in range(len(shop_chefs)):
+                x = 100 + i * 200
+                y = 150
+                box_rect = pygame.Rect(x, y, 150, 200)
+                if box_rect.collidepoint(mouse_x, mouse_y):
+                    price = shop_prices[i]
+                    if price is not None and current_money >= price:
+                        buy_sound.play()
+                        current_money -= price
+                        new_chef = shop_chefs[i]
+                        active_chefs.append(new_chef)
+                        log_chef_to_csv(new_chef)
+                        print(f"Bought {new_chef.name}!")
+                        shop_prices[i] = None
+                        shop_chefs[i] = None
+
+            # Spices
+            for i, rect in enumerate(spice_rects):
+                if rect.collidepoint(mouse_x, mouse_y):
+                    if not spice_purchased[i] and current_money >= 5:
+                        buy_sound.play()
+                        current_money -= 5
+                        spice_purchased[i] = True
+                        spice_name, spice_func = shop_spices[i]
+                        spice_func.level_up()
+                        print(f"Used {spice_name} spice!")
+
+            cont_button = pygame.Rect(configs.WIDTH // 2 - 50, configs.HEIGHT - 60, 100, 40)
+            if cont_button.collidepoint(mouse_x, mouse_y):
+                shop = False
+                refill_hand()
+
+# Main Game
+def handle_gameplay(events):
+    global plays_left, discards_left, game_won, game_lost
+
+    screen.blit(background_img, (0, 0))
+
+    for event in events:
+        if event.type == pygame.MOUSEBUTTONDOWN:
             clicked_card = get_clicked_card(hand, pygame.mouse.get_pos())
-
             if clicked_card:
                 toggle_card_selection(clicked_card)
 
@@ -515,50 +654,97 @@ while running:
             if discard_rect.collidepoint(pygame.mouse.get_pos()) and discards_left > 0:
                 discard()
 
-    if game_won and not shop:
-        reset_dp()
+    draw_hand(hand)
+    draw_score_panel()
+    draw_chefs()
+    draw_chef_tooltip()
+    draw_play_button()
+    draw_discard_button()
+    draw_money()
 
-        if phase == 4:
-            phase = 1
-
-        if phase == 1:
-            current_money += 3
-        elif phase == 2:
-            current_money += 4
-        elif phase == 3:
-            current_money += 5
-
-        current_money += plays_left
-        plays_left = max_plays_per_round
-        discards_left = max_discards_per_round
-
-        phase += 1
-        current_score = 0
-        goal_score += int(200 * 1.5 * phase)
-
-        open_shop()
-        shop = True
-
-        game_won = False
-
-    else:
-        draw_hand(hand)
-        draw_score_panel()
-        draw_chefs()
-        draw_chef_tooltip()
-        draw_play_button()
-        draw_discard_button()
-        draw_money()
-
-    if plays_left == 0 and not game_won:
+    if plays_left == 0:
         game_lost = True
 
-    if game_lost:
-        restart_button = draw_lose_screen()
-        if event.type == pygame.MOUSEBUTTONDOWN and restart_button.collidepoint(pygame.mouse.get_pos()):
-            reset_game()
+
+# Win Screen
+def handle_game_win():
+    global phase, current_money, plays_left, discards_left
+    global current_score, goal_score, game_won, shop
+
+    reset_dp()
+
+    phase += 1
+    # print(phase, phase%3)
+    # DEBUG LINE
+
+    current_money += [3, 4, 5][phase%3] + plays_left
+    plays_left = max_plays_per_round
+    discards_left = max_discards_per_round
+    current_score = 0
+    goal_score += int(200 * 1.5 * phase)
+
+    open_shop()
+    shop = True
+    game_won = False
+
+# Lose Screen
+def handle_game_loss(events):
+    global game_lost
+    restart_button = draw_lose_screen()
+    for event in events:
+        if event.type == pygame.MOUSEBUTTONDOWN:
+            if restart_button.collidepoint(pygame.mouse.get_pos()):
+                reset_game()
+                game_lost = False
+
+def main_game_loop():
+    global running, title_screen, shop, game_won, game_lost
+
+    running = True
+
+    while running:
+        events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                running = False
+
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_p:
+                    threading.Thread(target=open_tk_window_with_tabs).start()
+
+                if event.key == pygame.K_h:
+                    print("========================================")
+                    print("[!] Hands")
+                    meals.represent()
+                    print("========================================")
+
+                global volume
+                if event.key == pygame.K_UP:
+                    volume = min(1.0, volume + 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                    # print(f"Volume: {int(volume * 100)}%")
+                    # DEBUG
+
+                elif event.key == pygame.K_DOWN:
+                    volume = max(0.0, volume - 0.1)
+                    pygame.mixer.music.set_volume(volume)
+                    # print(f"Volume: {int(volume * 100)}%")
+                    # DEBUG
+
+        if title_screen:
+            handle_title_screen(events)
+        elif shop:
+            handle_shop(events)
+        elif game_won:
+            handle_game_win()
+        elif game_lost:
+            handle_game_loss(events)
+        else:
+            handle_gameplay(events)
+
         pygame.display.flip()
 
-    pygame.display.flip()
+    pygame.quit()
 
-pygame.quit()
+
+main_game_loop()
