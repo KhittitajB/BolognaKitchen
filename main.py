@@ -435,8 +435,8 @@ def draw_shop():
     return spice_rects, cont_button, reroll_button
 
 def draw_chef_tooltip(chef, x, y):
-    tooltip_width = 200
-    tooltip_height = 100
+    tooltip_width = 380
+    tooltip_height = 80
     tooltip_rect = pygame.Rect(x + 10, y + 10, tooltip_width, tooltip_height)
 
     pygame.draw.rect(screen, (255, 255, 240), tooltip_rect)
@@ -451,7 +451,7 @@ def draw_chef_tooltip(chef, x, y):
 
 def generate_shop_chefs():
     new_chefs = [random.choice(chefs.chef_list) for _ in range(3)]
-    new_prices = [random.randint(3, 6) for _ in new_chefs]
+    new_prices = [chef.price for chef in new_chefs]
     return new_chefs, new_prices
 
 def reset_game():
@@ -470,21 +470,22 @@ def reset_game():
     reset_dp()
     refill_hand()
 
-csv_files = ["data/cards_played.csv",
+numeric_files = ["data/cards_played.csv",
              "data/cards_discarded.csv",
-             "data/chef_bought.csv",
-             "data/hands_played.csv",
+             "data/chef_bought.csv"]
+
+string_files = ["data/hands_played.csv",
              "data/shop_activities.csv"]
 
 def open_tk_window_with_tabs():
     root = tk.Tk()
-    root.title("CSV Histogram Tabs")
+    root.title("Data Visualization")
     root.geometry("800x600")
 
     notebook = ttk.Notebook(root)
     notebook.pack(fill='both', expand=True)
 
-    for file_path in csv_files:
+    for file_path in numeric_files:
         try:
             df = pd.read_csv(file_path)
             numeric_columns = df.select_dtypes(include='number').columns
@@ -507,6 +508,36 @@ def open_tk_window_with_tabs():
 
         except Exception as e:
             print(f"Failed to process {file_path}: {e}")
+
+    for file_path in string_files:
+        try:
+            df = pd.read_csv(file_path)
+            string_col = df.select_dtypes(include='object').columns
+
+            if string_col.empty:
+                continue
+
+            column = string_col[1]
+
+            tab = ttk.Frame(notebook)
+            notebook.add(tab, text=file_path.split("/")[-1])
+
+            counts = df[column].value_counts()
+
+            fig, ax = plt.subplots(figsize=(6, 4))
+            ax.pie(counts, labels=counts.index, autopct='%1.1f%%', startangle=90)
+            ax.set_title(f"Pie Chart of {column}")
+            ax.axis("equal")
+
+            canvas = FigureCanvasTkAgg(fig, master=tab)
+            canvas.draw()
+            canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True)
+
+        except Exception as e:
+            print(f"Failed to process {file_path}: {e}")
+
+    quit_button = tk.Button(root, text="Quit", command=root.destroy)
+    quit_button.pack(pady=10)
 
     root.mainloop()
 
@@ -533,8 +564,8 @@ chef_positions = []
 def draw_chefs():
     chef_rects = []
     for i, chef in enumerate(active_chefs):
-        x = 100 + i * 160
-        y = 10
+        x = 70 + i * 90
+        y = 20
         chef.draw(screen, x, y)
         rect = pygame.Rect(x, y, 150, 200)
         chef_rects.append((rect, chef))
@@ -692,6 +723,14 @@ def handle_gameplay(events):
 
     mouse_pos = pygame.mouse.get_pos()
     hovered_chef = None
+
+    info1 = font.render("Press 'P' to view data window", True, (255, 255, 255))
+    info2 = font.render("Press H to check hand levels", True, (255, 255, 255))
+    info3 = font.render("Press 1 and 2 to sort cards", True, (255, 255, 255))
+    screen.blit(info1, (configs.WIDTH - info1.get_width() - 10, 10))
+    screen.blit(info2, (configs.WIDTH - info2.get_width() - 10, 40))
+    screen.blit(info3, (configs.WIDTH - info3.get_width() - 10, 70))
+
 
     for event in events:
         if event.type == pygame.MOUSEBUTTONDOWN:
