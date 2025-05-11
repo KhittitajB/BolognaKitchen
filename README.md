@@ -36,7 +36,7 @@ This project is built using:
 
 # Sources
 
-Images used in this game can be found [here](www.youtube.com/watch?v=2aedgE6q7lI&t).
+Images used in this game can be found [here](https://docs.google.com/document/d/1uEjzivOpOoGw6ehtqmWCrGbYN060IyEqKYtCFc7zpMI/edit?usp=sharing).
 
 # License
 
